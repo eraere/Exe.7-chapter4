@@ -1,0 +1,224 @@
+import random
+
+class Card:
+    def __init__(self, suit, value):
+        self.suit = suit
+        self.value = value
+
+    def get_numeric_value(self):
+        if self.value in ['K', 'Q', 'J']:
+            return 10
+        elif self.value == 'A':
+            return 11  # Assuming Ace is 11, but it can be 1 if needed
+        else:
+            return int(self.value)
+
+    def get_image_path(self):
+        return f"images/{self.value}{self.suit}.png"
+
+class Deck:
+    def __init__(self):
+        self.cards = []
+
+    def shuffle(self):
+        random.shuffle(self.cards)
+
+    def deal_card(self):
+        if len(self.cards) > 0:
+            return self.cards.pop()
+        else:
+            print("Out of cards. Please shuffle the deck.")
+
+class EnglishDeck(Deck):
+    def __init__(self):
+        super().__init__()
+        suits = ['H', 'D', 'C', 'S']
+        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+
+        for suit in suits:
+            for value in values:
+                self.cards.append(Card(suit, value))
+
+        self.shuffle()
+
+class Hand:
+    def __init__(self):
+        self.cards = []
+
+    def add_card(self, card):
+        self.cards.append(card)
+
+    def get_total_value(self):
+        total = sum(card.get_numeric_value() for card in self.cards)
+        num_aces = sum(1 for card in self.cards if card.value == 'A')
+
+        while total > 21 and num_aces:
+            total -= 10
+            num_aces -= 1
+
+        return total
+
+
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.hand = Hand()
+
+
+class BlackjackGame:
+    def __init__(self):
+        self.deck = EnglishDeck()
+        self.player = Player("Player")
+        self.dealer = Player("Dealer")
+
+    def start_game(self):
+     
+        for _ in range(2):
+            self.player.hand.add_card(self.deck.deal_card())
+            self.dealer.hand.add_card(self.deck.deal_card())
+
+    def player_hit(self):
+        self.player.hand.add_card(self.deck.deal_card())
+
+    def dealer_hit(self):
+        while self.dealer.hand.get_total_value() < 17:
+            self.dealer.hand.add_card(self.deck.deal_card())
+
+    def determine_winner(self):
+        player_total = self.player.hand.get_total_value()
+        dealer_total = self.dealer.hand.get_total_value()
+
+        if player_total > 21:
+            return "Dealer"
+        elif dealer_total > 21:
+            return "Player"
+        elif player_total > dealer_total:
+            return "Player"
+        elif dealer_total > player_total:
+            return "Dealer"
+        else:
+            return "Tie"
+
+
+if __name__ == "__main__":
+    game = BlackjackGame()
+    game.start_game()
+
+    print("Player's Hand:")
+    for card in game.player.hand.cards:
+        print(f"{card.value} of {card.suit}")
+
+    print("\nDealer's Hand:")
+    print(f"{game.dealer.hand.cards[0].value} of {game.dealer.hand.cards[0].suit}")
+    print("Hidden Card")
+
+    while True:
+        action = input("Do you want to hit? (y/n): ").lower()
+        if action == 'y':
+            game.player_hit()
+            print("Player's Hand:")
+            for card in game.player.hand.cards:
+                print(f"{card.value} of {card.suit}")
+        elif action == 'n':
+            break
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
+
+    game.dealer_hit()
+    print("\nDealer's Hand:")
+    for card in game.dealer.hand.cards:
+        print(f"{card.value} of {card.suit}")
+
+    winner = game.determine_winner()
+    print(f"\nWinner: {winner}")
+
+    ######################################################################################################################
+    #if we use PyQT GUI:
+
+    import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt
+
+class BlackjackGUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.game = BlackjackGame()
+        self.init_ui()
+
+    def init_ui(self):
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        self.player_label = QLabel("Player's Hand", self)
+        self.dealer_label = QLabel("Dealer's Hand", self)
+
+        self.player_cards_label = QLabel(self)
+        self.dealer_cards_label = QLabel(self)
+
+        self.hit_button = QPushButton('Hit', self)
+        self.stand_button = QPushButton('Stand', self)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.player_label)
+        layout.addWidget(self.player_cards_label)
+        layout.addWidget(self.dealer_label)
+        layout.addWidget(self.dealer_cards_label)
+        layout.addWidget(self.hit_button)
+        layout.addWidget(self.stand_button)
+
+        central_widget.setLayout(layout)
+
+        self.hit_button.clicked.connect(self.player_hit)
+        self.stand_button.clicked.connect(self.dealer_turn)
+
+        self.start_game()
+
+    def start_game(self):
+        self.game.start_game()
+        self.update_ui()
+
+    def update_ui(self):
+        player_hand_text = "\n".join([f"{card.value} of {card.suit}" for card in self.game.player.hand.cards])
+        dealer_hand_text = f"{self.game.dealer.hand.cards[0].value} of {self.game.dealer.hand.cards[0].suit}\nHidden Card"
+
+        self.player_cards_label.setText(player_hand_text)
+        self.dealer_cards_label.setText(dealer_hand_text)
+
+    def player_hit(self):
+        self.game.player_hit()
+        self.update_ui()
+
+        if self.game.player.hand.get_total_value() > 21:
+            self.end_game()
+
+    def dealer_turn(self):
+        self.game.dealer_hit()
+        self.update_ui()
+
+        while self.game.dealer.hand.get_total_value() < 17:
+            self.game.dealer_hit()
+            self.update_ui()
+
+        self.end_game()
+
+    def end_game(self):
+        winner = self.game.determine_winner()
+        result_label = QLabel(f"Winner: {winner}", self)
+        result_label.setAlignment(Qt.AlignCenter)
+        result_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+
+        layout = self.centralWidget().layout()
+        layout.addWidget(result_label)
+
+        self.hit_button.setEnabled(False)
+        self.stand_button.setEnabled(False)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = BlackjackGUI()
+    window.setGeometry(100, 100, 800, 600)
+    window.show()
+    sys.exit(app.exec_())
+
